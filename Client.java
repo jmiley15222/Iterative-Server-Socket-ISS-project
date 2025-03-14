@@ -62,8 +62,8 @@ public class Client {
                     System.out.println(response);
                 }
 
-                if (choice == 7) {
-                    System.out.println("Ending client session...");
+                if (response != null && response.equals("Ending client session...")) {
+                    System.out.println("Server has closed the connection. Exiting...");
                     break;
                 }
             }
