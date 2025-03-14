@@ -57,8 +57,8 @@ public class Client {
                     }
 
                 // Read response from server
-                String response;
-                while ((response = reader.readLine()) != null) {
+                String response = reader.readLine();
+                if (response != null) {
                     System.out.println(response);
                 }
 
