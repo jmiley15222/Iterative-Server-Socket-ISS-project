@@ -1,7 +1,7 @@
 # Iterative-Server-Socket-ISS-project
-This is a Simple Iterative Server project
+This is a Simple Iterative Server project!
 **Due: 3/17/2025 8:00 A.M**
-
+Expected Completion: 3/15/2025
 
 Create two (2) programs: 
 - 1) an iterative (single-threaded) server that accepts requests from clients
@@ -42,3 +42,4 @@ Go back to listening for client requests
     - The time required for the client request to travel to the server, be processed by the server, and return to the client
     - Total Turn-around Time (sum of the turn-around times for all the client requests)
     - Average Turn-around Time (Total Turn-around Time divided by the number client requests)
+
