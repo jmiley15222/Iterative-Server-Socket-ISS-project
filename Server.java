@@ -37,40 +37,47 @@ public class Server {
                             continue;
                         }
 
+						String response = "";
 						// Handle choices
 						switch (choice) {
 							case 1: 
 								//shows date and time
-								writer.println("Server Date and Time: " + new Date().toString());
+								response = "Server Date and Time: " + new Date().toString();
 								break;
 							case 2:
 								// shows how long server has been active
-								writer.println("Server Uptime: " + Duration.between(startTime, Instant.now()).toSeconds() + " seconds");
+								response = "Server Uptime: " + Duration.between(startTime, Instant.now()).toSeconds() + " seconds";
 								break;
 							case 3:
 								// shows memory use
-								writer.println("Memory Usage: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 + " KB");
+								response = "Memory Usage: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 + " KB";
 								break;
 							case 4:
 								// shows list of network connections on the server
-								writer.println(executeCommand(List.of("netstat", "-an")));
+								response = executeCommand(List.of("netstat", "-an"));
 								break;
 							case 5:
 								//shows list of users currently connected to the server
-								writer.println(executeCommand(List.of("who")));
+								response = executeCommand(List.of("who"));
 								break;
 							case 6:
 								//shows list of programs currently running on the server
-								writer.println(executeCommand(List.of("ps", "-aux")));
+								response = executeCommand(List.of("ps", "-aux"));
 								break;
 							case 7:
 								//closes connection
-								writer.println("Closing connection.");
-								return;
+								response = "Closing connection.";
+								writer.println(response);
+								writer.println("END_OF_RESPONSE");
+								writer.flush();
+								break;
 							default:
-								writer.println("Invalid choice");
+								response = "Invalid choice";
 
 						}
+						writer.println(response);
+						writer.println("END_OF_RESPONSE");
+						writer.flush();
 					}//end while
 				} catch (IOException | NumberFormatException e) {
 					System.out.println("Error: " + e.getMessage());
@@ -102,7 +109,7 @@ public class Server {
         } catch (IOException | InterruptedException e) {
             return "Error executing command: " + e.getMessage();
         }
-        return output.toString();
+        return output.toString().trim();
     }
 
 }//end class

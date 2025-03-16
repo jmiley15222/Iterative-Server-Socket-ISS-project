@@ -50,22 +50,34 @@ public class Client {
                         
                         // Send choice to server
                         writer.println(choice);
+
+                        StringBuilder responseBuilder = new StringBuilder();
+                        String line;
+
+                        while((line = reader.readLine()) != null) {
+                            if (line.equals("END_OF_RESPONSE")) {
+                                break;
+                            }
+                            responseBuilder.append(line).append("\n");
+                        }
+
+                        System.out.println(responseBuilder.toString().trim());
                     } else {
                         System.out.println("Invalid input, please enter a number.");
                         scan.next(); // Clear invalid input
-                        continue;
+                        // continue;
                     }
 
                 // Read response from server
-                String response = reader.readLine();
-                if (response != null) {
-                    System.out.println(response);
-                }
+                // String response = reader.readLine();
+                // if (response != null) {
+                //     System.out.println(response);
+                // }
 
-                if (response != null && response.equals("Ending client session...")) {
-                    System.out.println("Server has closed the connection. Exiting...");
-                    break;
-                }
+                // if (response != null && response.equals("Ending client session...")) {
+                //     System.out.println("Server has closed the connection. Exiting...");
+                //     break;
+                // }
             }
 
                 // switch (choice) {
