@@ -9,7 +9,7 @@ public class Client {
 
         // Validate input arguments
         if (args.length < 2) {
-            System.out.println("Usage: java MultiClientSessionClient <server IP> <port>");
+            System.out.println("Usage: java Client <server IP> <port>");
             scan.close();
             return;
         }
