@@ -1,126 +1,196 @@
-import java.util.*;
-import java.io.*;
-import java.net.*;
-import java.util.concurrent.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Client {
+    
     public static void main(String[] args) {
-        Scanner scan = new Scanner(System.in);
-
-        // Validate input arguments
+        // Check args
         if (args.length < 2) {
-            System.out.println("Usage: java Client <server IP> <port>");
-            scan.close();
+            System.out.println("Usage: java Client_Test <server_ip> <port>");
             return;
         }
-
-        String address = args[0];
-        int port = Integer.parseInt(args[1]);
-
-        // Prompt for number of client sessions
+        
+        String serverHost = args[0];
+        int port;
+        
+        try {
+            port = Integer.parseInt(args[1]);
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid port number. Please enter a valid port.");
+            return;
+        }
+        
+        // Get thread count and operation choice
+        Scanner scanner = new Scanner(System.in);
+        
         System.out.print("Enter number of client sessions (1, 5, 10, 15, 20, 25): ");
-        int numSessions = scan.nextInt();
-        scan.nextLine(); // Consume newline
-
-        // Track total turnaround time
-        long totalTurnaroundTime = 0;
-
-        // Create multiple client sessions
-        for (int sessionId = 1; sessionId <= numSessions; sessionId++) {
-            // Measure turnaround time for each session
-            long sessionStartTime = System.currentTimeMillis();
-
-            // Create a new client session
-            ClientSession clientSession = new ClientSession(address, port, sessionId);
-            long sessionTurnaroundTime = clientSession.executeSession(scan);
-
-            long sessionEndTime = System.currentTimeMillis();
-            long sessionTotalTime = sessionEndTime - sessionStartTime;
-
-            // Print session-specific information
-            System.out.println("\nSession " + sessionId + " Turnaround Time: " + sessionTurnaroundTime + " ms");
-            System.out.println("Session " + sessionId + " Total Execution Time: " + sessionTotalTime + " ms");
-
-            // Accumulate total turnaround time
-            totalTurnaroundTime += sessionTurnaroundTime;
-        }
-
-        // Calculate and print overall statistics
-        double averageTurnaroundTime = (double) totalTurnaroundTime / numSessions;
-        System.out.println("\nTotal Turnaround Time: " + totalTurnaroundTime + " ms");
-        System.out.println("Average Turnaround Time: " + averageTurnaroundTime + " ms");
-
-        scan.close();
-    }
-
-    // Represents a single client session
-    static class ClientSession {
-        private String serverAddress;
-        private int serverPort;
-        private int sessionId;
-
-        public ClientSession(String address, int port, int sessionId) {
-            this.serverAddress = address;
-            this.serverPort = port;
-            this.sessionId = sessionId;
-        }
-
-        public long executeSession(Scanner scan) {
-            long startTime = System.currentTimeMillis();
-
-            try (Socket socket = new Socket(serverAddress, serverPort);
-                 BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                 PrintWriter writer = new PrintWriter(socket.getOutputStream(), true)) {
-
-                int choice = 0;
-                while (choice != 7) {
-                    // Print menu for this session
-                    System.out.println("\nSession " + sessionId + " - Menu:");
-                    System.out.println("1. Date and Time");
-                    System.out.println("2. Uptime");
-                    System.out.println("3. Memory Use");
-                    System.out.println("4. Netstat");
-                    System.out.println("5. Current Users");
-                    System.out.println("6. Running Processes");
-                    System.out.println("7. End Program");
-
-                    // Get user input for this session
-                    System.out.print("Enter choice for Session " + sessionId + ": ");
-                    choice = scan.nextInt();
-                    scan.nextLine(); // Consume newline
-
-                    // Send choice to server
-                    writer.println(choice);
-
-                    // Read server response
-                    StringBuilder responseBuilder = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        if (line.equals("END_OF_RESPONSE")) {
-                            break;
-                        }
-                        responseBuilder.append(line).append("\n");
+        int numThreads = scanner.nextInt();
+        //print menu
+        System.out.println("Choose operation:");
+        System.out.println("1. Date and Time");
+        System.out.println("2. Server Uptime");
+        System.out.println("3. Memory Usage");
+        System.out.println("4. Network Connections");
+        System.out.println("5. Connected Users");
+        System.out.println("6. Running Programs");
+        System.out.print("Enter choice (1-6): ");
+        int choice = scanner.nextInt();
+        
+        // Ask about response display
+        System.out.print("Display full responses? (y/n): ");
+        scanner.nextLine(); // Consume newline
+        boolean showFullResponses = scanner.nextLine().trim().toLowerCase().startsWith("y");
+        
+        scanner.close();
+        
+        // Start test
+        runTest(serverHost, port, numThreads, choice, showFullResponses);
+    }//end main
+    
+    
+    private static void runTest(String serverHost, int port, int numThreads, int choice, boolean showFullResponses) {
+        System.out.println("\nStarting test with " + numThreads + " threads using operation #" + choice);
+        
+        // Create thread pool
+        ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+        
+        // Synchronization latch
+        CountDownLatch latch = new CountDownLatch(numThreads);
+        
+        // Store results
+        List<ThreadResult> results = new ArrayList<>();
+        
+        // Total timing
+        long totalStartTime = System.currentTimeMillis();
+        
+        // Launch threads
+        for (int i = 0; i < numThreads; i++) {
+            final int threadId = i + 1;
+            executor.submit(() -> {
+                try {
+                    // Run request
+                    ThreadResult result = executeRequest(serverHost, port, choice, threadId);
+                    synchronized (results) {
+                        results.add(result);
                     }
-
-                    // Print response for this session
-                    System.out.println("Session " + sessionId + " Response:\n" + 
-                                       responseBuilder.toString().trim());
-
-                    // Break if user chooses to end
-                    if (choice == 7) {
-                        break;
-                    }
+                } catch (Exception e) {
+                    System.out.println("Thread " + threadId + " error: " + e.getMessage());
+                } finally {
+                    latch.countDown();
                 }
-            } catch (UnknownHostException ex) {
-                System.out.println("Session " + sessionId + " - Unknown host: " + ex.getMessage());
-                return 0L;
-            } catch (IOException ex) {
-                System.out.println("Session " + sessionId + " - I/O error: " + ex.getMessage());
-                return 0L;
-            }
-
-            long endTime = System.currentTimeMillis();
-            return endTime - startTime;
+            });
         }
-    }
+        
+        // Wait for completion
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            System.out.println("Interrupted while waiting for threads: " + e.getMessage());
+        }
+        
+        // Calculate times
+        long totalEndTime = System.currentTimeMillis();
+        long totalTurnaround = totalEndTime - totalStartTime;
+        
+        // Display results
+        System.out.println("\n===== RESULTS =====");
+        for (ThreadResult result : results) {
+            System.out.println("Thread " + result.threadId + 
+                    ": Turnaround time = " + result.turnaroundTime + " ms");
+            
+            if (result.response != null && !result.response.isEmpty()) {
+                if (showFullResponses) {
+                    System.out.println("  Response:");
+                    System.out.println("  " + result.response.replace("\n", "\n  "));
+                    System.out.println("  --- End of Response ---");
+                } else {
+                    // Summary only
+                    int lineCount = result.response.split("\n").length;
+                    System.out.println("  Response: " + lineCount + " lines, " + 
+                            result.response.length() + " characters");
+                }
+            }
+        }
+        
+        // Average time calculation
+        double avgTurnaround = results.stream()
+                .mapToLong(r -> r.turnaroundTime)
+                .average()
+                .orElse(0.0);
+        
+        System.out.println("\nTotal turn around time: " + totalTurnaround + " ms");
+        System.out.println("Average thread turnaround time: " + String.format("%.2f", avgTurnaround) + " ms");
+        
+        executor.shutdown();
+    }//end runTest
+    
+    // Send request and process response
+    private static ThreadResult executeRequest(String serverHost, int port, int choice, int threadId) {
+        long startTime = System.currentTimeMillis();
+        String response = "";
+        
+        try (Socket socket = new Socket(serverHost, port);
+             PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+            
+            System.out.println("Thread " + threadId + ": Connected to server, sending request...");
+            
+            // Send request
+            writer.println(String.valueOf(choice));
+            writer.flush();
+            
+            // Simulate network delay
+            Thread.sleep(50);
+            
+            System.out.println("Thread " + threadId + ": Reading response...");
+            
+            // Read response 
+            StringBuilder responseBuilder = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.equals("END_OF_RESPONSE")) {
+                    break;
+                }
+                responseBuilder.append(line).append("\n");
+            }
+            response = responseBuilder.toString().trim();
+            
+            System.out.println("Thread " + threadId + ": Response received (" + 
+                    response.length() + " characters)");
+            
+        } catch (IOException e) {
+            response = "Error: " + e.getMessage();
+            System.out.println("Thread " + threadId + ": " + e.getMessage());
+        } catch (InterruptedException e) {
+            response = "Thread was interrupted";
+            System.out.println("Thread " + threadId + " was interrupted");
+        }
+        
+        long endTime = System.currentTimeMillis();
+        long turnaroundTime = endTime - startTime;
+        
+        return new ThreadResult(threadId, turnaroundTime, response);
+    }//end executeRequest
+    
+    // Result storage class
+    private static class ThreadResult {
+        final int threadId;
+        final long turnaroundTime;
+        final String response;
+        
+        ThreadResult(int threadId, long turnaroundTime, String response) {
+            this.threadId = threadId;
+            this.turnaroundTime = turnaroundTime;
+            this.response = response;
+        }
+    }//end ThreadResult
 }
